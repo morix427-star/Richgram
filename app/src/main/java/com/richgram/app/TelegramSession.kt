@@ -169,7 +169,7 @@ class TelegramSession(context: Context) {
                     null,
                     true
                 )
-                client.send(TdApi.SendMessage(chatId, null, null, null, content))
+                client.send(TdApi.SendMessage(chatId, null, null, null, null, content))
             } catch (e: Exception) {
                 _error.value = e.message ?: "Не удалось отправить сообщение"
             }
