@@ -44,7 +44,7 @@ private fun RichGramRoot(session: TelegramSession) {
     val state by session.authState.collectAsState()
     val error by session.error.collectAsState()
     if (state == "ready") {
-        RichGramApp()
+        RichGramApp(session)
     } else {
         TelegramLoginScreen(state, error, session::sendPhone, session::sendCode, session::sendPassword)
     }
@@ -112,21 +112,25 @@ private data class ChatItem(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RichGramApp() {
+fun RichGramApp(session: TelegramSession) {
     var selectedFolder by remember { mutableStateOf("Все чаты") }
     var selectedTab by remember { mutableStateOf("Чаты") }
     var searchOpen by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
 
-    val chats = listOf(
-        ChatItem("Избранное", "Сохранённые сообщения", "15:42", "★", Color(0xFF6B9CEB)),
-        ChatItem("Telegram", "Добро пожаловать в RichGram!", "15:20", "T", Color(0xFF55A6E8), verified = true),
-        ChatItem("Александр", "Привет! Как ты?", "14:58", "А", Color(0xFFE6A05C), 2),
-        ChatItem("Друзья", "Мария: Отправила фотографии", "13:41", "Д", Color(0xFF8D78D8), 5, muted = true),
-        ChatItem("Новости технологий", "Новые сообщения", "Вчера", "Н", Color(0xFF58B99A), 1, true),
-        ChatItem("Мама ❤️", "Хорошо, до вечера!", "Вчера", "М", Color(0xFFD987A5)),
-        ChatItem("Работа", "Документы отправлены", "Пн", "Р", Color(0xFF6C9CB8), muted = true)
-    )
+    val liveChats by session.chats.collectAsState()
+    val chats = liveChats.mapIndexed { index, chat ->
+        val initials = chat.title.trim().firstOrNull()?.uppercase() ?: "?"
+        val palette = listOf(Color(0xFF6B9CEB), Color(0xFFE6A05C), Color(0xFF8D78D8), Color(0xFF58B99A), Color(0xFFD987A5))
+        ChatItem(
+            name = chat.title,
+            message = chat.lastMessage.ifBlank { "Нет сообщений" },
+            time = chat.time,
+            initials = initials,
+            color = palette[index % palette.size],
+            unread = chat.unreadCount
+        )
+    }
 
     MaterialTheme(colorScheme = lightColorScheme(primary = TelegramBlue, background = Screen, surface = Screen)) {
         Scaffold(
@@ -213,13 +217,16 @@ fun RichGramApp() {
                 AdminPanel(Modifier.fillMaxSize().padding(padding))
             } else if (selectedTab == "Чаты") {
                 val visibleChats = chats.filter {
-                    (query.isBlank() || it.name.contains(query, true) || it.message.contains(query, true)) &&
-                    (selectedFolder == "Все чаты" ||
-                        (selectedFolder == "Личные" && it.name !in listOf("Друзья", "Новости технологий", "Работа")) ||
-                        (selectedFolder == "Группы" && it.name in listOf("Друзья", "Работа")) ||
-                        (selectedFolder == "Каналы" && it.name == "Новости технологий"))
+                    query.isBlank() || it.name.contains(query, true) || it.message.contains(query, true)
                 }
                 LazyColumn(modifier = Modifier.fillMaxSize().padding(padding)) {
+                    if (visibleChats.isEmpty()) {
+                        item {
+                            Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                                Text("Пока нет чатов Telegram", color = SecondaryText)
+                            }
+                        }
+                    }
                     items(visibleChats) { chat ->
                         ChatRow(chat)
                         HorizontalDivider(color = DividerColor, thickness = .6.dp, modifier = Modifier.padding(start = 82.dp))
