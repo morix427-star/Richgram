@@ -14,6 +14,13 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+data class TelegramMessageItem(
+    val id: Long,
+    val text: String,
+    val outgoing: Boolean,
+    val time: String
+)
+
 data class TelegramChatItem(
     val id: Long,
     val title: String,
@@ -33,6 +40,11 @@ class TelegramSession(context: Context) {
     private val _chats = MutableStateFlow<List<TelegramChatItem>>(emptyList())
     val chats: StateFlow<List<TelegramChatItem>> = _chats.asStateFlow()
     private val chatCache = linkedMapOf<Long, TdApi.Chat>()
+    private val messageCache = linkedMapOf<Long, MutableList<TelegramMessageItem>>()
+    private val _messages = MutableStateFlow<List<TelegramMessageItem>>(emptyList())
+    val messages: StateFlow<List<TelegramMessageItem>> = _messages.asStateFlow()
+    private val _selectedChat = MutableStateFlow<TelegramChatItem?>(null)
+    val selectedChat: StateFlow<TelegramChatItem?> = _selectedChat.asStateFlow()
 
     init {
         System.loadLibrary("tdjni")
@@ -98,10 +110,68 @@ class TelegramSession(context: Context) {
                         publishChats()
                     }
                     is TdApi.UpdateNewMessage -> {
-                        chatCache[update.message.chatId]?.lastMessage = update.message
+                        val msg = update.message
+                        chatCache[msg.chatId]?.lastMessage = msg
+                        val list = messageCache.getOrPut(msg.chatId) { mutableListOf() }
+                        if (list.none { it.id == msg.id }) list.add(toMessage(msg))
+                        if (_selectedChat.value?.id == msg.chatId) _messages.value = list.sortedBy { it.id }
                         publishChats()
                     }
                 }
+            }
+        }
+    }
+
+
+    private fun toMessage(message: TdApi.Message): TelegramMessageItem {
+        val text = when (val content = message.content) {
+            is TdApi.MessageText -> content.text.text
+            is TdApi.MessagePhoto -> "📷 Фото"
+            is TdApi.MessageVideo -> "🎥 Видео"
+            is TdApi.MessageDocument -> "📎 Файл"
+            is TdApi.MessageVoiceNote -> "🎤 Голосовое сообщение"
+            is TdApi.MessageAudio -> "🎵 Аудио"
+            is TdApi.MessageSticker -> "Стикер"
+            else -> "Сообщение"
+        }
+        return TelegramMessageItem(
+            message.id, text, message.isOutgoing,
+            SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(message.date * 1000L))
+        )
+    }
+
+    fun openChat(chat: TelegramChatItem) {
+        _selectedChat.value = chat
+        _messages.value = messageCache[chat.id]?.sortedBy { it.id } ?: emptyList()
+        scope.launch {
+            try {
+                val result: TdApi.Messages = client.send(TdApi.GetChatHistory(chat.id, 0L, 0, 50, false))
+                val loaded = result.messages.map { toMessage(it) }.toMutableList()
+                messageCache[chat.id] = loaded
+                _messages.value = loaded.sortedBy { it.id }
+            } catch (e: Exception) {
+                _error.value = e.message ?: "Не удалось загрузить переписку"
+            }
+        }
+    }
+
+    fun closeChat() {
+        _selectedChat.value = null
+        _messages.value = emptyList()
+        _error.value = ""
+    }
+
+    fun sendText(chatId: Long, text: String) {
+        scope.launch {
+            try {
+                val content = TdApi.InputMessageText(
+                    TdApi.FormattedText(text.trim(), emptyArray()),
+                    null,
+                    true
+                )
+                client.send(TdApi.SendMessage(chatId, null, null, null, content))
+            } catch (e: Exception) {
+                _error.value = e.message ?: "Не удалось отправить сообщение"
             }
         }
     }
