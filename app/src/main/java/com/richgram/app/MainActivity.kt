@@ -129,7 +129,8 @@ fun RichGramApp() {
                         Triple("Контакты", Icons.Default.Contacts, "Контакты"),
                         Triple("Звонки", Icons.Default.Call, "Звонки"),
                         Triple("Чаты", Icons.Default.Chat, "Чаты"),
-                        Triple("Настройки", Icons.Default.Settings, "Настройки")
+                        Triple("Настройки", Icons.Default.Settings, "Настройки"),
+                        Triple("Админ", Icons.Default.AdminPanelSettings, "Админ")
                     ).forEach { (label, icon, key) ->
                         NavigationBarItem(
                             selected = selectedTab == key,
@@ -142,7 +143,7 @@ fun RichGramApp() {
                 }
             }
         ) { padding ->
-            if (selectedTab == "Чаты") {
+            if (selectedTab == "Админ") {\n                AdminPanel(Modifier.fillMaxSize().padding(padding))\n            } else if (selectedTab == "Чаты") {
                 val visibleChats = chats.filter {
                     (query.isBlank() || it.name.contains(query, true) || it.message.contains(query, true)) &&
                     (selectedFolder == "Все чаты" ||
@@ -166,7 +167,7 @@ fun RichGramApp() {
                         when (selectedTab) {
                             "Контакты" -> Icons.Default.Contacts
                             "Звонки" -> Icons.Default.Call
-                            else -> Icons.Default.Settings
+                            "Админ" -> Icons.Default.AdminPanelSettings\n                            else -> Icons.Default.Settings
                         },
                         contentDescription = null,
                         tint = TelegramBlue,
@@ -217,6 +218,68 @@ private fun ChatRow(chat: ChatItem) {
                     }
                 }
             }
+        }
+    }
+}
+
+
+@Composable
+private fun AdminPanel(modifier: Modifier = Modifier) {
+    var userId by remember { mutableStateOf("") }
+    var amount by remember { mutableStateOf("100") }
+    var gift by remember { mutableStateOf("🌹 Роза") }
+    var note by remember { mutableStateOf("") }
+    var message by remember { mutableStateOf("Демонстрационный режим: операции пока не отправляются на сервер.") }
+
+    Column(modifier.padding(16.dp)) {
+        Text("Панель владельца", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        Text("Управление внутренними RichGram Stars и подарками", color = SecondaryText, fontSize = 13.sp)
+        Spacer(Modifier.height(16.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            AdminStat("Пользователи", "—")
+            AdminStat("Выдано Stars", "—")
+            AdminStat("Подарки", "—")
+        }
+        Spacer(Modifier.height(18.dp))
+        Text("Начислить RichGram Stars", fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
+        OutlinedTextField(userId, { userId = it }, modifier = Modifier.fillMaxWidth(), label = { Text("ID пользователя") }, singleLine = true)
+        OutlinedTextField(amount, { amount = it.filter(Char::isDigit).take(9) }, modifier = Modifier.fillMaxWidth(), label = { Text("Количество Stars") }, singleLine = true)
+        OutlinedTextField(note, { note = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Комментарий (необязательно)") }, singleLine = true)
+        Button(onClick = { message = if (userId.isBlank() || amount.isBlank() || amount == "0") "Укажи ID пользователя и количество Stars." else "Запрос подготовлен. Для реального начисления нужно подключить защищённый сервер." }, modifier = Modifier.fillMaxWidth()) {
+            Icon(Icons.Default.Star, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
+            Text("Начислить Stars")
+        }
+        HorizontalDivider(Modifier.padding(vertical = 16.dp), color = DividerColor)
+        Text("Выдать подарок", fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
+        OutlinedTextField(gift, { gift = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Название подарка") }, singleLine = true)
+        OutlinedTextField(userId, { userId = it }, modifier = Modifier.fillMaxWidth(), label = { Text("ID получателя") }, singleLine = true)
+        Button(onClick = { message = if (userId.isBlank()) "Сначала укажи ID получателя." else "Подарок выбран. Отправка станет доступна после подключения сервера." }, modifier = Modifier.fillMaxWidth()) {
+            Icon(Icons.Default.CardGiftcard, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
+            Text("Выдать подарок")
+        }
+        HorizontalDivider(Modifier.padding(vertical = 16.dp), color = DividerColor)
+        Text("Другие инструменты", fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
+        listOf("Управление Premium", "Список пользователей", "История операций", "Блокировки и ограничения").forEach { label ->
+            Row(Modifier.fillMaxWidth().clickable { message = "$label: подключим в следующем этапе." }.padding(vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.ChevronRight, contentDescription = null, tint = TelegramBlue)
+                Spacer(Modifier.width(8.dp))
+                Text(label)
+            }
+            HorizontalDivider(color = DividerColor)
+        }
+        Spacer(Modifier.height(12.dp))
+        Text(message, color = SecondaryText, fontSize = 12.sp)
+    }
+}
+
+@Composable
+private fun RowScope.AdminStat(title: String, value: String) {
+    Card(Modifier.weight(1f), colors = CardDefaults.cardColors(containerColor = Color(0xFFF2F6FA))) {
+        Column(Modifier.padding(10.dp)) {
+            Text(value, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TelegramBlue)
+            Text(title, fontSize = 10.sp, color = SecondaryText)
         }
     }
 }
