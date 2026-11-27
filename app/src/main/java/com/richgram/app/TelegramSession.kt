@@ -97,10 +97,6 @@ class TelegramSession(context: Context) {
                         }
                         publishChats()
                     }
-                    is TdApi.UpdateChatUnreadMessageCount -> {
-                        chatCache[update.chatId]?.unreadCount = update.unreadCount
-                        publishChats()
-                    }
                     is TdApi.UpdateNewMessage -> {
                         chatCache[update.message.chatId]?.lastMessage = update.message
                         publishChats()
