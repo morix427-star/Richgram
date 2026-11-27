@@ -27,9 +27,75 @@ private val SecondaryText = Color(0xFF8A929A)
 private val DividerColor = Color(0xFFE9EDF0)
 
 class MainActivity : ComponentActivity() {
+    private lateinit var telegram: TelegramSession
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { RichGramApp() }
+        telegram = TelegramSession(applicationContext)
+        setContent { RichGramRoot(telegram) }
+    }
+    override fun onDestroy() {
+        super.onDestroy()
+        if (isFinishing && ::telegram.isInitialized) telegram.close()
+    }
+}
+
+@Composable
+private fun RichGramRoot(session: TelegramSession) {
+    val state by session.authState.collectAsState()
+    val error by session.error.collectAsState()
+    if (state == "ready") {
+        RichGramApp()
+    } else {
+        TelegramLoginScreen(state, error, session::sendPhone, session::sendCode, session::sendPassword)
+    }
+}
+
+@Composable
+private fun TelegramLoginScreen(
+    state: String, error: String,
+    onPhone: (String) -> Unit, onCode: (String) -> Unit, onPassword: (String) -> Unit
+) {
+    var value by remember { mutableStateOf("") }
+    val prompt = when (state) {
+        "phone" -> "Номер телефона с кодом страны"
+        "code" -> "Код подтверждения из Telegram"
+        "password" -> "Пароль двухэтапной проверки"
+        else -> state
+    }
+    Column(
+        Modifier.fillMaxSize().background(Screen).padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text("RichGram", fontSize = 30.sp, fontWeight = FontWeight.Bold, color = TelegramBlue)
+        Spacer(Modifier.height(20.dp))
+        Text("Вход в Telegram", fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
+        Spacer(Modifier.height(8.dp))
+        Text(prompt, color = SecondaryText)
+        if (state == "phone" || state == "code" || state == "password") {
+            Spacer(Modifier.height(18.dp))
+            OutlinedTextField(value, { value = it }, label = { Text(prompt) }, singleLine = true)
+            Spacer(Modifier.height(12.dp))
+            Button(onClick = {
+                when (state) {
+                    "phone" -> onPhone(value)
+                    "code" -> onCode(value)
+                    "password" -> onPassword(value)
+                }
+                value = ""
+            }, enabled = value.isNotBlank(), modifier = Modifier.fillMaxWidth()) {
+                Text("Продолжить")
+            }
+        } else {
+            Spacer(Modifier.height(18.dp))
+            CircularProgressIndicator(color = TelegramBlue)
+        }
+        if (error.isNotBlank()) {
+            Spacer(Modifier.height(12.dp))
+            Text(error, color = MaterialTheme.colorScheme.error)
+        }
+        Spacer(Modifier.height(20.dp))
+        Text("Код входа вводи только в RichGram. Никому его не сообщай.", color = SecondaryText, fontSize = 12.sp)
     }
 }
 
