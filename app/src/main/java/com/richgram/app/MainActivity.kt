@@ -143,7 +143,9 @@ fun RichGramApp() {
                 }
             }
         ) { padding ->
-            if (selectedTab == "Админ") {\n                AdminPanel(Modifier.fillMaxSize().padding(padding))\n            } else if (selectedTab == "Чаты") {
+            if (selectedTab == "Админ") {
+                AdminPanel(Modifier.fillMaxSize().padding(padding))
+            } else if (selectedTab == "Чаты") {
                 val visibleChats = chats.filter {
                     (query.isBlank() || it.name.contains(query, true) || it.message.contains(query, true)) &&
                     (selectedFolder == "Все чаты" ||
@@ -167,7 +169,8 @@ fun RichGramApp() {
                         when (selectedTab) {
                             "Контакты" -> Icons.Default.Contacts
                             "Звонки" -> Icons.Default.Call
-                            "Админ" -> Icons.Default.AdminPanelSettings\n                            else -> Icons.Default.Settings
+                            "Админ" -> Icons.Default.AdminPanelSettings
+                            else -> Icons.Default.Settings
                         },
                         contentDescription = null,
                         tint = TelegramBlue,
