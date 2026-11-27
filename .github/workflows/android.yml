@@ -18,6 +18,9 @@ jobs:
         with:
           gradle-version: "8.9"
       - name: Build debug APK
+        env:
+          TELEGRAM_API_ID: ${{ secrets.TELEGRAM_API_ID }}
+          TELEGRAM_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
         run: gradle :app:assembleDebug
       - uses: actions/upload-artifact@v4
         with:
