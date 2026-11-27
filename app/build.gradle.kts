@@ -8,7 +8,7 @@ android {
     compileSdk = 35
     defaultConfig {
         applicationId = "com.richgram.app"
-        minSdk = 23
+        minSdk = 26
         targetSdk = 35
         versionCode = 1
         versionName = "0.1.0"
@@ -20,7 +20,7 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
-    buildFeatures { compose = true }
+    buildFeatures {\n        compose = true\n        buildConfig = true\n    }
 }
 dependencies {
     implementation(platform("androidx.compose:compose-bom:2024.12.01"))
@@ -28,5 +28,5 @@ dependencies {
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
-    implementation("androidx.compose.material:material-icons-extended")
+    implementation("androidx.compose.material:material-icons-extended")\n    implementation("io.github.tdlib-android:core:0.1.1")\n    implementation("io.github.tdlib-android:ktx:0.1.1")\n    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")\n    val telegramApiId = System.getenv("TELEGRAM_API_ID") ?: ""\n    val telegramApiHash = System.getenv("TELEGRAM_API_HASH") ?: ""\n    defaultConfig {\n        buildConfigField("String", "TELEGRAM_API_ID", "\\\"$telegramApiId\\\"")\n        buildConfigField("String", "TELEGRAM_API_HASH", "\\\"$telegramApiHash\\\"")\n    }
 }
