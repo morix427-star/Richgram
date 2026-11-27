@@ -33,7 +33,25 @@ class TelegramSession(context: Context) {
         scope.launch {
             client.updates.collect { update ->
                 if (update is TdApi.UpdateAuthorizationState) {
+                    if (update.authorizationState is TdApi.AuthorizationStateWaitTdlibParameters) {
+                        client.send(TdApi.SetTdlibParameters().apply {
+                            useTestDc = false
+                            databaseDirectory = context.filesDir.absolutePath + "/richgram-tdlib/db"
+                            filesDirectory = context.filesDir.absolutePath + "/richgram-tdlib/files"
+                            useFileDatabase = true
+                            useChatInfoDatabase = true
+                            useMessageDatabase = true
+                            useSecretChats = true
+                            apiId = BuildConfig.TELEGRAM_API_ID
+                            apiHash = BuildConfig.TELEGRAM_API_HASH
+                            systemLanguageCode = java.util.Locale.getDefault().language
+                            deviceModel = android.os.Build.MODEL
+                            systemVersion = android.os.Build.VERSION.RELEASE
+                            applicationVersion = "0.1.0"
+                        })
+                    }
                     _authState.value = when (update.authorizationState) {
+                        is TdApi.AuthorizationStateWaitTdlibParameters -> "Подготовка базы Telegram…"
                         is TdApi.AuthorizationStateWaitPhoneNumber -> "phone"
                         is TdApi.AuthorizationStateWaitCode -> "code"
                         is TdApi.AuthorizationStateWaitPassword -> "password"
