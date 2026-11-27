@@ -46,9 +46,6 @@ class TelegramSession(context: Context) {
                 }
             }
         }
-        scope.launch {
-            client.errors.collect { _error.value = it.message ?: "Ошибка TDLib" }
-        }
     }
 
     fun sendPhone(phone: String) {
