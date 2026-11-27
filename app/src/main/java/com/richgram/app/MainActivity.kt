@@ -100,6 +100,7 @@ private fun TelegramLoginScreen(
 }
 
 private data class ChatItem(
+    val id: Long,
     val name: String,
     val message: String,
     val time: String,
@@ -117,12 +118,14 @@ fun RichGramApp(session: TelegramSession) {
     var selectedTab by remember { mutableStateOf("Чаты") }
     var searchOpen by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
+    val selectedChat by session.selectedChat.collectAsState()
 
     val liveChats by session.chats.collectAsState()
     val chats = liveChats.mapIndexed { index, chat ->
         val initials = chat.title.trim().firstOrNull()?.uppercase() ?: "?"
         val palette = listOf(Color(0xFF6B9CEB), Color(0xFFE6A05C), Color(0xFF8D78D8), Color(0xFF58B99A), Color(0xFFD987A5))
         ChatItem(
+            id = chat.id,
             name = chat.title,
             message = chat.lastMessage.ifBlank { "Нет сообщений" },
             time = chat.time,
@@ -213,7 +216,9 @@ fun RichGramApp(session: TelegramSession) {
                 }
             }
         ) { padding ->
-            if (selectedTab == "Админ") {
+            if (selectedChat != null) {
+                TelegramChatScreen(session, selectedChat!!, Modifier.fillMaxSize().padding(padding))
+            } else if (selectedTab == "Админ") {
                 AdminPanel(Modifier.fillMaxSize().padding(padding))
             } else if (selectedTab == "Чаты") {
                 val visibleChats = chats.filter {
@@ -228,7 +233,7 @@ fun RichGramApp(session: TelegramSession) {
                         }
                     }
                     items(visibleChats) { chat ->
-                        ChatRow(chat)
+                        ChatRow(chat) { session.openChat(liveChats.firstOrNull { it.id == chat.id } ?: return@ChatRow) }
                         HorizontalDivider(color = DividerColor, thickness = .6.dp, modifier = Modifier.padding(start = 82.dp))
                     }
                 }
@@ -259,9 +264,9 @@ fun RichGramApp(session: TelegramSession) {
 }
 
 @Composable
-private fun ChatRow(chat: ChatItem) {
+private fun ChatRow(chat: ChatItem, onClick: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().height(76.dp).clickable { }.padding(horizontal = 12.dp),
+        Modifier.fillMaxWidth().height(76.dp).clickable(onClick = onClick).padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
@@ -298,6 +303,41 @@ private fun ChatRow(chat: ChatItem) {
     }
 }
 
+
+@Composable
+private fun TelegramChatScreen(session: TelegramSession, chat: TelegramChatItem, modifier: Modifier = Modifier) {
+    val messages by session.messages.collectAsState()
+    val error by session.error.collectAsState()
+    var draft by remember { mutableStateOf("") }
+    Column(modifier.background(Color(0xFFF4F6F8))) {
+        Row(Modifier.fillMaxWidth().background(Color.White).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = session::closeChat) { Icon(Icons.Default.ArrowBack, contentDescription = "Назад") }
+            Column(Modifier.weight(1f)) {
+                Text(chat.title, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
+                Text("Telegram", color = SecondaryText, fontSize = 12.sp)
+            }
+        }
+        LazyColumn(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 10.dp), contentPadding = PaddingValues(vertical = 12.dp)) {
+            items(messages, key = { it.id }) { msg ->
+                Row(Modifier.fillMaxWidth().padding(vertical = 3.dp), horizontalArrangement = if (msg.outgoing) Arrangement.End else Arrangement.Start) {
+                    Column(Modifier.widthIn(max = 300.dp).background(if (msg.outgoing) Color(0xFFD9FDD3) else Color.White, MaterialTheme.shapes.medium).padding(horizontal = 12.dp, vertical = 8.dp)) {
+                        Text(msg.text, color = Color(0xFF20252A), fontSize = 15.sp)
+                        Text(msg.time, color = SecondaryText, fontSize = 10.sp, modifier = Modifier.align(Alignment.End))
+                    }
+                }
+            }
+        }
+        if (error.isNotBlank()) Text(error, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 12.dp))
+        Row(Modifier.fillMaxWidth().background(Color.White).padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            OutlinedTextField(value = draft, onValueChange = { draft = it }, modifier = Modifier.weight(1f), placeholder = { Text("Сообщение") }, maxLines = 4)
+            IconButton(onClick = {
+                if (draft.isNotBlank()) { session.sendText(chat.id, draft); draft = "" }
+            }, enabled = draft.isNotBlank()) {
+                Icon(Icons.Default.Send, contentDescription = "Отправить", tint = TelegramBlue)
+            }
+        }
+    }
+}
 
 @Composable
 private fun AdminPanel(modifier: Modifier = Modifier) {
